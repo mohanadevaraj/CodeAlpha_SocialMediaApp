@@ -249,7 +249,7 @@ user (ref: User), text, timestamps
 ## 🙋‍♀️ Author
 
 **Mohana Devaraj**
-- GitHub: https://github.com/mohanadevaraj/CodeAlpha_SocialMediaApp.git
+- GitHub: https://github.com/mohanadevaraj
 - Internship: CodeAlpha Full Stack Development Intern
 
 ---
