@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe — Explore</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .search-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+    }
+    .search-bar .input { margin: 0; }
+    .users-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .user-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: border-color 0.2s;
+    }
+    .user-card:hover { border-color: var(--accent); }
+    .user-card-info { flex: 1; min-width: 0; }
+    .user-card-name { font-weight: 600; font-size: 15px; }
+    .user-card-username { font-size: 13px; color: var(--text-muted); }
+    .user-card-followers { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      color: var(--text-muted);
+    }
+  </style>
+</head>
+<body>
+  <div id="topnav" class="topnav"></div>
+
+  <div class="page-wide">
+    <div class="search-bar">
+      <input class="input" id="search-input" type="text" placeholder="Search for users…" autocomplete="off">
+      <button class="btn btn-primary" id="search-btn">Search</button>
+    </div>
+
+    <div id="users-section" style="display:none">
+      <p class="section-title">Users</p>
+      <div class="users-grid" id="users-grid"></div>
+    </div>
+
+    <p class="section-title" id="posts-title">All Posts</p>
+    <div id="explore-posts">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/posts.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error();
+    renderNav('explore');
+
+    const me = getUser();
+
+    // Pre-fill search from URL param
+    const params = new URLSearchParams(window.location.search);
+    const initialSearch = params.get('search') || '';
+    if (initialSearch) {
+      document.getElementById('search-input').value = initialSearch;
+      performSearch(initialSearch);
+    }
+
+    document.getElementById('search-btn').addEventListener('click', () => {
+      performSearch(document.getElementById('search-input').value.trim());
+    });
+
+    document.getElementById('search-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') performSearch(document.getElementById('search-input').value.trim());
+    });
+
+    async function performSearch(query) {
+      if (!query) { document.getElementById('users-section').style.display = 'none'; return; }
+      try {
+        const users = await apiGet(`/users?search=${encodeURIComponent(query)}`);
+        const grid = document.getElementById('users-grid');
+        document.getElementById('users-section').style.display = 'block';
+
+        if (users.length === 0) {
+          grid.innerHTML = '<p style="color:var(--text-muted)">No users found.</p>';
+          return;
+        }
+
+        grid.innerHTML = users.map(u => `
+          <div class="user-card">
+            <a href="profile.html?u=${u.username}">${avatarEl(u, 44)}</a>
+            <div class="user-card-info">
+              <div class="user-card-name">${u.fullName || u.username}</div>
+              <div class="user-card-username">@${u.username}</div>
+              <div class="user-card-followers">${u.followers?.length || 0} followers</div>
+            </div>
+            ${u._id !== me._id ? `<a href="profile.html?u=${u.username}" class="btn btn-outline btn-sm">View</a>` : ''}
+          </div>
+        `).join('');
+      } catch (err) { toast(err.message, 'error'); }
+    }
+
+    async function loadAllPosts() {
+      const container = document.getElementById('explore-posts');
+      container.innerHTML = '<div class="spinner"></div>';
+      try {
+        const posts = await apiGet('/posts');
+        if (posts.length === 0) {
+          container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>No posts yet.</p></div>`;
+          return;
+        }
+        container.innerHTML = posts.map(renderPost).join('');
+        attachPostEvents();
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><p>${err.message}</p></div>`;
+      }
+    }
+
+    loadAllPosts();
+  </script>
+</body>
+</html>

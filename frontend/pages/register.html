@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe — Create Account</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 40px 36px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .auth-logo {
+      font-family: var(--font-display);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .auth-subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-bottom: 32px;
+    }
+    .auth-footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  </style>
+</head>
+<body>
+  <div class="auth-card">
+    <div class="auth-logo">✦ Vibe</div>
+    <p class="auth-subtitle">Join the community</p>
+
+    <form id="register-form">
+      <div class="input-group">
+        <label>Full Name</label>
+        <input class="input" type="text" id="fullName" placeholder="Alex Johnson">
+      </div>
+      <div class="input-group">
+        <label>Username</label>
+        <input class="input" type="text" id="username" placeholder="alexj" required minlength="3" maxlength="20">
+      </div>
+      <div class="input-group">
+        <label>Email</label>
+        <input class="input" type="email" id="email" placeholder="you@example.com" required>
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <input class="input" type="password" id="password" placeholder="At least 6 characters" required minlength="6">
+      </div>
+      <button class="btn btn-primary btn-full" type="submit" id="reg-btn">Create Account</button>
+    </form>
+
+    <div class="auth-footer">
+      Already have an account? <a href="login.html">Sign in</a>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script>
+    redirectIfLoggedIn();
+
+    document.getElementById('register-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('reg-btn');
+      btn.textContent = 'Creating…';
+      btn.disabled = true;
+
+      try {
+        const data = await apiPost('/auth/register', {
+          fullName: document.getElementById('fullName').value,
+          username: document.getElementById('username').value,
+          email: document.getElementById('email').value,
+          password: document.getElementById('password').value,
+        });
+        const { token, ...user } = data;
+        setAuth(user, token);
+        toast('Welcome to Vibe! 🎉');
+        setTimeout(() => window.location.href = 'feed.html', 1000);
+      } catch (err) {
+        toast(err.message, 'error');
+        btn.textContent = 'Create Account';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

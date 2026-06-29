@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe — Home</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .compose-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .compose-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .compose-right { flex: 1; }
+    .compose-textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 16px;
+      font-family: var(--font-body);
+      resize: none;
+      outline: none;
+      min-height: 60px;
+      line-height: 1.6;
+    }
+    .compose-textarea::placeholder { color: var(--text-dim); }
+    .compose-footer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      margin-top: 12px;
+    }
+    .compose-footer .char-count {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-left: auto;
+    }
+    .compose-footer .char-count.warn { color: #f9a06a; }
+    .compose-footer .char-count.over { color: var(--red); }
+    .img-url-input {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+    }
+    .img-url-input:focus { border-color: var(--accent); }
+    .img-url-input::placeholder { color: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <div id="topnav" class="topnav"></div>
+
+  <div class="page-wrap">
+    <!-- Compose -->
+    <div class="compose-card">
+      <div class="compose-row">
+        <div id="compose-avatar"></div>
+        <div class="compose-right">
+          <textarea class="compose-textarea" id="post-content" placeholder="What's on your mind?" maxlength="1000"></textarea>
+          <div class="compose-footer">
+            <input class="img-url-input" id="post-image" placeholder="Image URL (optional)">
+            <span class="char-count" id="char-count">0 / 1000</span>
+            <button class="btn btn-primary btn-sm" id="post-btn">Post</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feed -->
+    <div id="feed-container">
+      <div class="spinner"></div>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/posts.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error('unauthenticated');
+    renderNav('feed');
+
+    const user = getUser();
+    document.getElementById('compose-avatar').innerHTML = avatarEl(user, 44);
+
+    // Char counter
+    const textarea = document.getElementById('post-content');
+    const charCount = document.getElementById('char-count');
+    textarea.addEventListener('input', () => {
+      const len = textarea.value.length;
+      charCount.textContent = `${len} / 1000`;
+      charCount.className = 'char-count' + (len > 900 ? (len > 1000 ? ' over' : ' warn') : '');
+    });
+
+    // Post button
+    document.getElementById('post-btn').addEventListener('click', async () => {
+      const content = textarea.value.trim();
+      const image = document.getElementById('post-image').value.trim();
+      if (!content) return toast('Write something first!', 'error');
+
+      const btn = document.getElementById('post-btn');
+      btn.textContent = 'Posting…';
+      btn.disabled = true;
+
+      try {
+        const post = await apiPost('/posts', { content, image });
+        textarea.value = '';
+        document.getElementById('post-image').value = '';
+        charCount.textContent = '0 / 1000';
+        toast('Posted! ✨');
+        loadFeed();
+      } catch (err) {
+        toast(err.message, 'error');
+      } finally {
+        btn.textContent = 'Post';
+        btn.disabled = false;
+      }
+    });
+
+    async function loadFeed() {
+      const container = document.getElementById('feed-container');
+      container.innerHTML = '<div class="spinner"></div>';
+      try {
+        const posts = await apiGet('/posts/feed');
+        if (posts.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">🌱</div>
+              <p>Your feed is empty.<br>Follow some people to see their posts!</p>
+              <br>
+              <a href="explore.html" class="btn btn-outline btn-sm">Explore Users</a>
+            </div>`;
+          return;
+        }
+        container.innerHTML = posts.map(renderPost).join('');
+        attachPostEvents();
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><p>${err.message}</p></div>`;
+      }
+    }
+
+    loadFeed();
+  </script>
+</body>
+</html>

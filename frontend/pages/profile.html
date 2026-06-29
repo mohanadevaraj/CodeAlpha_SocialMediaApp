@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe — Profile</title>
+  <link rel="stylesheet" href="../css/style.css">
+  <style>
+    .profile-avatar-wrap { position: relative; flex-shrink: 0; }
+    .profile-avatar-wrap .avatar,
+    .profile-avatar-wrap .avatar-placeholder { width: 96px !important; height: 96px !important; font-size: 38px !important; }
+
+    /* Edit modal */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 500;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 32px;
+      width: 100%;
+      max-width: 440px;
+    }
+    .modal-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 24px;
+    }
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    /* Followers modal */
+    .followers-modal { max-width: 380px; max-height: 70vh; overflow-y: auto; }
+    .modal h3 { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+
+    .follow-actions { display: flex; gap: 10px; }
+  </style>
+</head>
+<body>
+  <div id="topnav" class="topnav"></div>
+
+  <div class="page-wrap">
+    <div id="profile-container"><div class="spinner"></div></div>
+    <div id="posts-container"></div>
+  </div>
+
+  <!-- Edit Profile Modal -->
+  <div class="modal-overlay" id="edit-modal">
+    <div class="modal">
+      <div class="modal-title">Edit Profile</div>
+      <div class="input-group">
+        <label>Full Name</label>
+        <input class="input" id="edit-name" type="text">
+      </div>
+      <div class="input-group">
+        <label>Bio</label>
+        <textarea class="input" id="edit-bio" maxlength="160" rows="3"></textarea>
+      </div>
+      <div class="input-group">
+        <label>Avatar URL</label>
+        <input class="input" id="edit-avatar" type="text" placeholder="https://…">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-primary" id="save-edit-btn">Save Changes</button>
+        <button class="btn btn-ghost" id="cancel-edit-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Followers/Following Modal -->
+  <div class="modal-overlay" id="follows-modal">
+    <div class="modal followers-modal">
+      <h3 id="follows-modal-title">Followers</h3>
+      <div id="follows-list"></div>
+      <button class="btn btn-ghost btn-sm" id="close-follows-btn" style="margin-top:16px">Close</button>
+    </div>
+  </div>
+
+  <script src="../js/api.js"></script>
+  <script src="../js/posts.js"></script>
+  <script>
+    if (!requireAuth()) throw new Error();
+    renderNav('profile');
+
+    const me = getUser();
+    const params = new URLSearchParams(window.location.search);
+    const username = params.get('u');
+    if (!username) window.location.href = `profile.html?u=${me.username}`;
+
+    let profileUser = null;
+
+    async function loadProfile() {
+      const container = document.getElementById('profile-container');
+      const postsContainer = document.getElementById('posts-container');
+      container.innerHTML = '<div class="spinner"></div>';
+      try {
+        const { user, posts } = await apiGet(`/users/${username}`);
+        profileUser = user;
+        const isMe = user._id === me._id || user._id?.toString() === me._id?.toString();
+        const isFollowing = user.followers.some(f => (f._id||f).toString() === me._id?.toString());
+
+        // Update page title
+        document.title = `Vibe — @${user.username}`;
+
+        container.innerHTML = `
+          <div class="profile-header">
+            <div class="profile-avatar-wrap">
+              ${avatarEl(user, 96)}
+            </div>
+            <div class="profile-info">
+              <div class="profile-name">${user.fullName || user.username}</div>
+              <div class="profile-username">@${user.username}</div>
+              ${user.bio ? `<div class="profile-bio">${escapeHtml(user.bio)}</div>` : ''}
+              <div class="profile-stats">
+                <div class="stat">
+                  <span class="stat-num">${posts.length}</span>
+                  <span class="stat-label">Posts</span>
+                </div>
+                <div class="stat" id="followers-stat" style="cursor:pointer">
+                  <span class="stat-num" id="followers-count">${user.followers.length}</span>
+                  <span class="stat-label">Followers</span>
+                </div>
+                <div class="stat" id="following-stat" style="cursor:pointer">
+                  <span class="stat-num">${user.following.length}</span>
+                  <span class="stat-label">Following</span>
+                </div>
+              </div>
+              <div class="follow-actions">
+                ${isMe
+                  ? `<button class="btn btn-outline btn-sm" id="edit-profile-btn">Edit Profile</button>`
+                  : `<button class="btn ${isFollowing ? 'btn-ghost' : 'btn-primary'} btn-sm" id="follow-btn" data-id="${user._id}" data-following="${isFollowing}">
+                      ${isFollowing ? 'Following' : 'Follow'}
+                    </button>
+                    <a href="profile.html?u=${me.username}" class="btn btn-ghost btn-sm" style="text-decoration:none">My Profile</a>`
+                }
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Followers / Following click
+        document.getElementById('followers-stat').addEventListener('click', () =>
+          showFollowsModal('Followers', user.followers));
+        document.getElementById('following-stat').addEventListener('click', () =>
+          showFollowsModal('Following', user.following));
+
+        // Follow / Unfollow
+        const followBtn = document.getElementById('follow-btn');
+        if (followBtn) {
+          followBtn.addEventListener('click', async () => {
+            try {
+              const res = await apiPost(`/users/${followBtn.dataset.id}/follow`);
+              const following = res.following;
+              followBtn.textContent = following ? 'Following' : 'Follow';
+              followBtn.className = `btn ${following ? 'btn-ghost' : 'btn-primary'} btn-sm`;
+              followBtn.dataset.following = following;
+              document.getElementById('followers-count').textContent = res.followersCount;
+            } catch (err) { toast(err.message, 'error'); }
+          });
+        }
+
+        // Edit profile
+        const editBtn = document.getElementById('edit-profile-btn');
+        if (editBtn) {
+          editBtn.addEventListener('click', () => {
+            document.getElementById('edit-name').value = user.fullName || '';
+            document.getElementById('edit-bio').value = user.bio || '';
+            document.getElementById('edit-avatar').value = user.avatar || '';
+            document.getElementById('edit-modal').classList.add('open');
+          });
+        }
+
+        // Posts
+        if (posts.length === 0) {
+          postsContainer.innerHTML = `
+            <div class="empty-state">
+              <div class="icon">✏️</div>
+              <p>${isMe ? "You haven't posted yet." : `${user.username} hasn't posted yet.`}</p>
+            </div>`;
+        } else {
+          postsContainer.innerHTML = posts.map(renderPost).join('');
+          attachPostEvents();
+        }
+
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state"><p>${err.message}</p></div>`;
+      }
+    }
+
+    // Follows modal
+    function showFollowsModal(title, users) {
+      document.getElementById('follows-modal-title').textContent = title;
+      const list = document.getElementById('follows-list');
+      if (!users || users.length === 0) {
+        list.innerHTML = '<p style="color:var(--text-muted)">None yet.</p>';
+      } else {
+        list.innerHTML = users.map(u => `
+          <div class="user-row">
+            <a href="profile.html?u=${u.username}">${avatarEl(u, 40)}</a>
+            <div class="user-row-info">
+              <div class="user-row-name">${u.fullName || u.username}</div>
+              <div class="user-row-username">@${u.username}</div>
+            </div>
+            <a href="profile.html?u=${u.username}" class="btn btn-ghost btn-sm">View</a>
+          </div>`).join('');
+      }
+      document.getElementById('follows-modal').classList.add('open');
+    }
+
+    document.getElementById('close-follows-btn').addEventListener('click', () =>
+      document.getElementById('follows-modal').classList.remove('open'));
+    document.getElementById('follows-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+    });
+
+    // Edit save
+    document.getElementById('save-edit-btn').addEventListener('click', async () => {
+      const btn = document.getElementById('save-edit-btn');
+      btn.textContent = 'Saving…';
+      btn.disabled = true;
+      try {
+        const updated = await apiPut('/users/profile/update', {
+          fullName: document.getElementById('edit-name').value,
+          bio: document.getElementById('edit-bio').value,
+          avatar: document.getElementById('edit-avatar').value,
+        });
+        const { token, ...newUser } = { ...me, ...updated };
+        setAuth(newUser, getToken());
+        document.getElementById('edit-modal').classList.remove('open');
+        toast('Profile updated!');
+        loadProfile();
+      } catch (err) { toast(err.message, 'error'); }
+      finally { btn.textContent = 'Save Changes'; btn.disabled = false; }
+    });
+
+    document.getElementById('cancel-edit-btn').addEventListener('click', () =>
+      document.getElementById('edit-modal').classList.remove('open'));
+    document.getElementById('edit-modal').addEventListener('click', e => {
+      if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+    });
+
+    loadProfile();
+
+    function escapeHtml(text) {
+      return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  </script>
+</body>
+</html>
