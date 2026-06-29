@@ -82,9 +82,9 @@ This project demonstrates full-stack web development skills using **Node.js**, *
 | **Dev Tool** | Nodemon |
 
 ---
-
 ## 📁 Project Structure
 
+```
 CodeAlpha_SocialMediaApp/
 │
 ├── backend/
@@ -117,7 +117,8 @@ CodeAlpha_SocialMediaApp/
         ├── login.html
         ├── profile.html
         └── register.html
----
+```
+
 
 ## ⚙️ Installation & Setup
 
@@ -221,6 +222,27 @@ user (ref: User), text, timestamps
 | Feed | `/pages/feed.html` | Home timeline |
 | Explore | `/pages/explore.html` | Discover posts & users |
 | Profile | `/pages/profile.html?u=username` | User profile |
+
+---
+
+---
+
+## 📸 Project Screenshots
+
+### 🔐 Login Page
+![Login Page](screenshots/login.png)
+
+### 📝 Register Page
+![Register Page](screenshots/register.png)
+
+### 🏠 Home Feed
+![Home Feed](screenshots/feed.png)
+
+### 🔍 Explore Page
+![Explore Page](screenshots/explore.png)
+
+### 👤 Profile Page
+![Profile Page](screenshots/profile.png)
 
 ---
 
