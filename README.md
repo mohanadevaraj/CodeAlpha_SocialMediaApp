@@ -12,7 +12,7 @@
 
 **Vibe** is a mini social media platform built as part of the **CodeAlpha Internship Program**. It replicates core features of modern social media apps like Instagram and Twitter, including user authentication, posting content, liking, commenting, and following other users — all wrapped in a sleek dark-themed UI.
 
-This project demonstrates full-stack web development skills using **Node.js**, **Express.js**, **MongoDB**, and **Vanilla JavaScript** — with no frontend framework, proving that powerful UIs can be built with pure HTML, CSS, and JS.
+This project demonstrates full-stack web development skills using **Node.js**, **Express.js**, **MongoDB**, and **Vanilla JavaScript** — with no frontend framework, proving that powerful UIs can be built with pure HTML, CSS, and JS. The database is designed with **five separate collections**, following proper relational-style normalization within MongoDB for scalability and clarity.
 
 ---
 
@@ -36,22 +36,25 @@ This project demonstrates full-stack web development skills using **Node.js**, *
 - Create posts with **text content** (up to 1000 characters)
 - Optionally attach an **image via URL**
 - Character counter while typing
-- Delete your own posts
+- Delete your own posts (also cleans up related comments & likes)
 - Posts display **author info, timestamp, likes, comments**
 
 ### ❤️ Like System
 - Toggle like/unlike on any post
+- Likes stored as individual documents in a dedicated `likes` collection
 - Live like count updates instantly
 - Heart icon changes color when liked
 
 ### 💬 Comments
 - Add comments to any post
+- Comments stored as individual documents in a dedicated `comments` collection
 - Delete your own comments
 - Comments show **author, text, and time**
 - Collapsible comment section per post
 
 ### 👥 Follow System
 - Follow or unfollow any user
+- Follow relationships stored as individual documents in a dedicated `follows` collection
 - **Home Feed** shows posts only from users you follow
 - Followers and Following lists are clickable and viewable
 - Follow button updates instantly on profile page
@@ -82,6 +85,7 @@ This project demonstrates full-stack web development skills using **Node.js**, *
 | **Dev Tool** | Nodemon |
 
 ---
+
 ## 📁 Project Structure
 
 ```
@@ -94,7 +98,10 @@ CodeAlpha_SocialMediaApp/
 │   │   └── auth.js
 │   ├── models/
 │   │   ├── User.js
-│   │   └── Post.js
+│   │   ├── Post.js
+│   │   ├── Comment.js
+│   │   ├── Follow.js
+│   │   └── Like.js
 │   ├── routes/
 │   │   ├── auth.js
 │   │   ├── posts.js
@@ -119,6 +126,7 @@ CodeAlpha_SocialMediaApp/
         └── register.html
 ```
 
+---
 
 ## ⚙️ Installation & Setup
 
@@ -128,19 +136,23 @@ CodeAlpha_SocialMediaApp/
 - Git
 
 ### Step 1 — Clone the Repository
+
 ```bash
 git clone https://github.com/mohanadevaraj/CodeAlpha_SocialMediaApp.git
 cd CodeAlpha_SocialMediaApp
 ```
 
 ### Step 2 — Install Dependencies
+
 ```bash
 cd backend
 npm install
 ```
 
 ### Step 3 — Configure Environment Variables
+
 Create or edit `backend/.env`:
+
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_atlas_connection_string
@@ -149,56 +161,86 @@ NODE_ENV=development
 ```
 
 ### Step 4 — Run the App
+
 ```bash
 npm run dev
 ```
 
 ### Step 5 — Open in Browser
-
+http://localhost:5000/pages/login.html
 
 ---
 
 ## 🔗 API Endpoints
 
 ### Auth Routes
+
 | Method | Endpoint | Description |
 |---|---|---|
 | POST | `/api/auth/register` | Create new account |
 | POST | `/api/auth/login` | Login, returns JWT token |
-| GET | `/api/auth/me` | Get current logged-in user |
+| GET | `/api/auth/me` | Get current logged-in user with follower/following counts |
 
 ### User Routes
+
 | Method | Endpoint | Description |
 |---|---|---|
-| GET | `/api/users/:username` | Get profile + posts |
+| GET | `/api/users/:username` | Get profile, posts, followers & following |
 | PUT | `/api/users/profile/update` | Edit own profile |
 | POST | `/api/users/:id/follow` | Follow or unfollow user |
 | GET | `/api/users?search=q` | Search users by username |
 
 ### Post Routes
+
 | Method | Endpoint | Description |
 |---|---|---|
 | GET | `/api/posts/feed` | Get personalized home feed |
 | GET | `/api/posts` | Get all posts (explore) |
+| GET | `/api/posts/:id` | Get a single post with comments |
 | POST | `/api/posts` | Create a new post |
-| DELETE | `/api/posts/:id` | Delete own post |
+| DELETE | `/api/posts/:id` | Delete own post (cascades to comments & likes) |
 | POST | `/api/posts/:id/like` | Toggle like on post |
 | POST | `/api/posts/:id/comment` | Add comment to post |
-| DELETE | `/api/posts/:id/comment/:cid` | Delete own comment |
+| DELETE | `/api/posts/:id/comment/:commentId` | Delete own comment |
 
 ---
 
 ## 🗄️ Database Schema
 
-### User
+This project uses **five separate MongoDB collections** for clean, normalized data modeling:
 
-username, email, password (hashed), fullName,
+### 1. `users`
+username, email, password (hashed),
+fullName, bio, avatar, timestamps
 
-bio, avatar, followers[], following[], timestamps
+### 2. `posts`
+author (ref: User), content, image, timestamps
 
-### Comment (embedded in Post)
+### 3. `comments`
+post (ref: Post), user (ref: User), text, timestamps
 
-user (ref: User), text, timestamps
+### 4. `follows`
+follower (ref: User), following (ref: User), timestamps
+
+*Represents a directional relationship — one document per follow action.*
+
+### 5. `likes`
+post (ref: Post), user (ref: User), timestamps
+
+*One document per like — prevents duplicate likes via a unique compound index.*
+
+---
+
+### Entity Relationship Overview
+┌─────────┐         ┌─────────┐
+│  Users  │────────▶│  Posts  │
+└────┬────┘  author └────┬────┘
+│                    │
+│              ┌─────┴─────┐
+│              │           │
+┌────▼─────┐   ┌────▼────┐ ┌───▼────┐
+│ Follows  │   │ Comments│ │ Likes  │
+└──────────┘   └─────────┘ └────────┘
 
 ---
 
@@ -210,20 +252,6 @@ user (ref: User), text, timestamps
 - **Design:** Glassmorphism-inspired cards with subtle borders
 - **Responsive:** Works on desktop and mobile screens
 - **Interactions:** Toast notifications, live updates, smooth transitions
-
----
-
-## 📸 Pages Overview
-
-| Page | URL | Description |
-|---|---|---|
-| Login | `/pages/login.html` | Sign in to your account |
-| Register | `/pages/register.html` | Create a new account |
-| Feed | `/pages/feed.html` | Home timeline |
-| Explore | `/pages/explore.html` | Discover posts & users |
-| Profile | `/pages/profile.html?u=username` | User profile |
-
----
 
 ---
 
@@ -246,10 +274,43 @@ user (ref: User), text, timestamps
 
 ---
 
+## 🗃️ MongoDB Atlas — Live Database View
+
+A look at the actual collections stored in MongoDB Atlas, reflecting the 5-collection schema design.
+
+### Users Collection
+![Users Collection](screenshots/db-users.png)
+
+### Posts Collection
+![Posts Collection](screenshots/db-posts.png)
+
+### Comments Collection
+![Comments Collection](screenshots/db-comments.png)
+
+### Follows Collection
+![Follows Collection](screenshots/db-follows.png)
+
+### Likes Collection
+![Likes Collection](screenshots/db-likes.png)
+
+---
+
+## 📸 Pages Overview
+
+| Page | URL | Description |
+|---|---|---|
+| Login | `/pages/login.html` | Sign in to your account |
+| Register | `/pages/register.html` | Create a new account |
+| Feed | `/pages/feed.html` | Home timeline |
+| Explore | `/pages/explore.html` | Discover posts & users |
+| Profile | `/pages/profile.html?u=username` | User profile |
+
+---
+
 ## 🙋‍♀️ Author
 
 **Mohana Devaraj**
-- GitHub: https://github.com/mohanadevaraj
+- GitHub: [@mohanadevaraj](https://github.com/mohanadevaraj)
 - Internship: CodeAlpha Full Stack Development Intern
 
 ---
