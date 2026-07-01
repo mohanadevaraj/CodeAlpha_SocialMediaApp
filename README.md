@@ -310,7 +310,7 @@ A look at the actual collections stored in MongoDB Atlas, reflecting the 5-colle
 ## 🙋‍♀️ Author
 
 **Mohana Devaraj**
-- GitHub: [@mohanadevaraj](https://github.com/mohanadevaraj)
+- GitHub:https://github.com/mohanadevaraj
 - Internship: CodeAlpha Full Stack Development Intern
 
 ---
