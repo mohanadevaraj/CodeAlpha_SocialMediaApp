@@ -307,6 +307,14 @@ A look at the actual collections stored in MongoDB Atlas, reflecting the 5-colle
 
 ---
 
+## 🌐 Live Demo
+
+👉 [Click here to view live app]:https://codealpha-socialmediaapp-v0pr.onrender.com
+
+> ⚠️ Note: The app may take 30-60 seconds to load on first visit
+> as it runs on Render's free tier which sleeps after inactivity.
+> Please wait for it to wake up!
+
 ## 🙋‍♀️ Author
 
 **Mohana Devaraj**
